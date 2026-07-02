@@ -1,0 +1,51 @@
+cmake_minimum_required(VERSION 3.25)
+
+set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64" CACHE STRING "macOS architecture")
+
+option(EXPORT_COMPILE_COMMANDS "Export compile commands for LSP" ON)
+if (EXPORT_COMPILE_COMMANDS)
+    set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+endif ()
+
+include(FetchContent)
+
+message(STATUS "Fetching max-sdk-base")
+FetchContent_Declare(
+    max-sdk-base
+    GIT_REPOSITORY https://github.com/Cycling74/max-sdk-base.git
+    GIT_TAG main
+)
+FetchContent_MakeAvailable(max-sdk-base)
+
+if (NOT DEFINED MAX_SDK_PACKAGE_OUT_OF_TREE)
+    set(MAX_SDK_PACKAGE_OUT_OF_TREE ON)
+endif ()
+
+project(MaxPaulstretch)
+
+# max-sdk-base's Once.cmake (run as a CMAKE_PROJECT_TOP_LEVEL_INCLUDES hook
+# during the project() call above) already staged README.md into the
+# build-tree package. Overwrite it with the public-facing README instead.
+file(COPY_FILE "${CMAKE_SOURCE_DIR}/README-public.md" "${CMAKE_BINARY_DIR}/package/README.md")
+
+set(AUTHOR_DOMAIN "com.isabelgk.max")
+
+message(STATUS "Fetching libpaulstretch")
+set(PAULSTRETCH_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(PAULSTRETCH_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(PAULSTRETCH_BUILD_WASM OFF CACHE BOOL "" FORCE)
+if (APPLE)
+    # Accelerate sidesteps the pffft NEON path slice of the x86_64;arm64 universal
+    # build. Windows keeps the default PFFFT.
+    set(PAULSTRETCH_FFT_BACKEND "ACCELERATE" CACHE STRING "" FORCE)
+endif ()
+FetchContent_Declare(
+    libpaulstretch
+    GIT_REPOSITORY https://github.com/olilarkin/libpaulstretch.git
+    GIT_TAG 0619c0a981264f01fa0c5072b06301f17b6bd80c
+)
+# provides target paulstretch_core
+FetchContent_MakeAvailable(libpaulstretch) 
+
+add_subdirectory(source/paulstretch.stream_tilde)
+add_subdirectory(source/paulstretch_tilde)

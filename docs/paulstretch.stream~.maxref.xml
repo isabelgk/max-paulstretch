@@ -1,0 +1,292 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<?xml-stylesheet href="./c74ref.xsl" type="text/xsl"?>
+
+<c74object name="paulstretch.stream~" module="" category="">
+
+	<digest>
+		Live Paulstretch time-stretch
+	</digest>
+
+	<description>
+		Stretches a live signal using the Paulstretch extreme time-stretching
+		algorithm. The incoming signal is continuously recorded into a
+		fixed-length window and the stretcher scans that evolving recording.
+	</description>
+
+	<discussion>
+		The spectral-processing effects are applied in a fixed order on each
+		analysis frame, regardless of the order in which you enable them:
+		<at>harmonics</at>, <at>tonalnoise</at>, <at>freqshift</at>,
+		<at>pitchshift</at>, <at>octaves</at>, <at>spread</at>, <at>filter</at>,
+		the <m>arbfilter</m> curve, and finally <at>compressor</at>. Each
+		enabled stage transforms the spectrum and hands it to the next, so the
+		<at>compressor</at> always operates on the fully shaped result. This
+		order is fixed by the underlying Paulstretch library and cannot be
+		reordered.
+	</discussion>
+
+	<!--METADATA-->
+	<metadatalist>
+		<metadata name="author">Isabel Kaspriskie</metadata>
+		<metadata name="tag">MSP</metadata>
+		<metadata name="tag">spectral</metadata>
+	</metadatalist>
+
+	<!--INLETS-->
+	<inletlist>
+		<inlet id="0" type="signal">
+			<digest>Signal to stretch</digest>
+		</inlet>
+	</inletlist>
+
+	<!--OUTLETS-->
+	<outletlist>
+		<outlet id="0" type="signal">
+			<digest>Stretched signal</digest>
+		</outlet>
+	</outletlist>
+
+	<!--ARGUMENTS-->
+	<objarglist>
+	</objarglist>
+
+	<!--MESSAGES-->
+	<methodlist>
+		<method name="stretchenv">
+			<arglist>
+				<arg name="breakpoints" optional="1" type="list" />
+			</arglist>
+			<digest>Set the stretch envelope</digest>
+			<description>
+				Sets a breakpoint curve that modulates the stretch factor as the
+				input cursor advances. Arguments are alternating
+				<m>position value</m> pairs, where position is normalized
+				0.0-1.0 and value is a stretch multiplier. Sending the
+				message with no arguments clears the envelope.
+			</description>
+		</method>
+		<method name="arbfilter">
+			<arglist>
+				<arg name="breakpoints" optional="1" type="list" />
+			</arglist>
+			<digest>Set the arbitrary spectral filter</digest>
+			<description>
+				Sets a breakpoint curve of spectral gains. Arguments are
+				alternating <m>position value</m> pairs, where position is
+				normalized 0.0-1.0 across the spectrum and value is a linear
+				gain. A non-empty list also enables the arbitrary filter; sending
+				the message with no arguments clears it and turns it off.
+			</description>
+		</method>
+	</methodlist>
+
+	<!--ATTRIBUTES-->
+	<attributelist>
+		<attribute name="stretch" get="1" set="1" type="float64" size="1">
+			<digest>Stretch factor</digest>
+			<description>
+				Time-stretch multiplier (minimum 1.0, default 8.0). Updates take
+				effect immediately without restarting DSP.
+			</description>
+		</attribute>
+		<attribute name="fftsize" get="1" set="1" type="int" size="1">
+			<digest>FFT window size in samples</digest>
+			<description>
+				Size of the analysis/resynthesis window (default 4096). Larger
+				sizes smear more. The value may be rounded to a size the FFT
+				backend supports. Changes apply on the next DSP restart.
+			</description>
+		</attribute>
+		<attribute name="windowsize" get="1" set="1" type="float64" size="1">
+			<digest>Record window length in milliseconds</digest>
+			<description>
+				Length of the circular buffer of recent input that the stretcher
+				scans (default 5000 ms). Changes apply on the next DSP restart.
+			</description>
+		</attribute>
+		<attribute name="window" get="1" set="1" type="int" size="1">
+			<digest>Analysis window type</digest>
+			<description>
+				Shape of the analysis/resynthesis window: <m>Rectangular</m>,
+				<m>Hamming</m>, <m>Hann</m> (default), <m>Blackman</m>, or
+				<m>Blackman-Harris</m>. Changes apply on the next DSP restart.
+			</description>
+		</attribute>
+		<attribute name="onset" get="1" set="1" type="float64" size="1">
+			<digest>Onset detection sensitivity</digest>
+			<description>
+				Sensitivity of transient (onset) detection, 0.0-1.0 (default
+				0.0 = off). Higher values let the stretcher advance faster through
+				detected attacks so percussive material stays articulate rather
+				than smeared. Updates take effect immediately.
+			</description>
+		</attribute>
+		<attribute name="pitchshift" get="1" set="1" type="int" size="1">
+			<digest>Enable pitch shift</digest>
+			<description>
+				Turns the spectral pitch shifter on or off. The shift amount is set
+				by <at>pitchcents</at>. Default off.
+			</description>
+		</attribute>
+		<attribute name="pitchcents" get="1" set="1" type="int" size="1">
+			<digest>Pitch shift amount in cents</digest>
+			<description>
+				Pitch transposition in cents (100 cents = one semitone) applied
+				when <at>pitchshift</at> is enabled. Default 0.
+			</description>
+		</attribute>
+		<attribute name="octaves" get="1" set="1" type="int" size="1">
+			<digest>Enable octave mixer</digest>
+			<description>
+				Turns the octave mixer on or off. Band gains are set by
+				<at>octavemix</at>. Default off.
+			</description>
+		</attribute>
+		<attribute name="octavemix" get="1" set="1" type="float64" size="6">
+			<digest>Octave band gains</digest>
+			<description>
+				Six gains mixed into the output, one per octave band: -2, -1, 0,
+				+1, +1.5, and +2 octaves. Active when <at>octaves</at> is enabled.
+				Default <m>0 0 1 0 0 0</m> (dry signal only).
+			</description>
+		</attribute>
+		<attribute name="freqshift" get="1" set="1" type="int" size="1">
+			<digest>Enable frequency shift</digest>
+			<description>
+				Turns the (linear, inharmonic) frequency shifter on or off. The
+				amount is set by <at>freqshifthz</at>. Default off.
+			</description>
+		</attribute>
+		<attribute name="freqshifthz" get="1" set="1" type="int" size="1">
+			<digest>Frequency shift amount in Hz</digest>
+			<description>
+				Linear frequency shift in Hz applied when <at>freqshift</at> is
+				enabled. Default 0.
+			</description>
+		</attribute>
+		<attribute name="compressor" get="1" set="1" type="int" size="1">
+			<digest>Enable loudness leveler</digest>
+			<description>
+				Turns the spectral compressor on or off. It applies a single
+				broadband gain to each analysis frame, evening out the output's
+				overall loudness over time rather than shaping dynamics per
+				frequency band. Strength is set by <at>comppower</at>. Default
+				off.
+			</description>
+		</attribute>
+		<attribute name="comppower" get="1" set="1" type="float64" size="1">
+			<digest>Loudness leveling strength</digest>
+			<description>
+				How strongly each frame is pushed toward a constant loudness when
+				<at>compressor</at> is enabled. At 1.0 every frame is normalized
+				to the same level; lower values level partially. Default 0 (no
+				effect).
+			</description>
+		</attribute>
+		<attribute name="filter" get="1" set="1" type="int" size="1">
+			<digest>Enable filter</digest>
+			<description>
+				Turns the spectral filter on or off. The passband is set by
+				<at>filterlow</at> / <at>filterhigh</at>; <at>filterstop</at>
+				inverts it to a notch. Default off.
+			</description>
+		</attribute>
+		<attribute name="filterlow" get="1" set="1" type="float64" size="1">
+			<digest>Filter low cutoff in Hz</digest>
+			<description>
+				Lower edge of the filter band in Hz. Default 0.
+			</description>
+		</attribute>
+		<attribute name="filterhigh" get="1" set="1" type="float64" size="1">
+			<digest>Filter high cutoff in Hz</digest>
+			<description>
+				Upper edge of the filter band in Hz. Default 22000.
+			</description>
+		</attribute>
+		<attribute name="filterdamp" get="1" set="1" type="float64" size="1">
+			<digest>Filter high-frequency damping</digest>
+			<description>
+				Progressive attenuation toward the top of the passband. Default 0.
+			</description>
+		</attribute>
+		<attribute name="filterstop" get="1" set="1" type="int" size="1">
+			<digest>Notch (stop-band) mode</digest>
+			<description>
+				When enabled, the filter band is rejected instead of passed,
+				turning the bandpass into a notch. Default off.
+			</description>
+		</attribute>
+		<attribute name="harmonics" get="1" set="1" type="int" size="1">
+			<digest>Enable harmonics</digest>
+			<description>
+				Turns the harmonic resonator on or off, keeping only energy near a
+				harmonic series of <at>harmfreq</at>. Default off.
+			</description>
+		</attribute>
+		<attribute name="harmfreq" get="1" set="1" type="float64" size="1">
+			<digest>Harmonics fundamental in Hz</digest>
+			<description>
+				Fundamental frequency of the harmonic series in Hz. Default 440.
+			</description>
+		</attribute>
+		<attribute name="harmbw" get="1" set="1" type="float64" size="1">
+			<digest>Harmonics bandwidth in cents</digest>
+			<description>
+				Width of each harmonic band in cents. Default 25.
+			</description>
+		</attribute>
+		<attribute name="harmcount" get="1" set="1" type="int" size="1">
+			<digest>Number of harmonics</digest>
+			<description>
+				How many harmonics of <at>harmfreq</at> to retain. Default 10.
+			</description>
+		</attribute>
+		<attribute name="harmgauss" get="1" set="1" type="int" size="1">
+			<digest>Gaussian harmonic profile</digest>
+			<description>
+				When enabled, harmonic bands use a smooth Gaussian profile instead
+				of a hard gate. Default off.
+			</description>
+		</attribute>
+		<attribute name="spread" get="1" set="1" type="int" size="1">
+			<digest>Enable spectral spread</digest>
+			<description>
+				Turns spectral spreading on or off, smearing energy across nearby
+				bins. Width is set by <at>spreadbw</at>. Default off.
+			</description>
+		</attribute>
+		<attribute name="spreadbw" get="1" set="1" type="float64" size="1">
+			<digest>Spread bandwidth</digest>
+			<description>
+				Amount of spectral spreading applied when <at>spread</at> is
+				enabled. Default 0.3.
+			</description>
+		</attribute>
+		<attribute name="tonalnoise" get="1" set="1" type="int" size="1">
+			<digest>Enable tonal/noise preservation</digest>
+			<description>
+				Turns tonal/noise preservation on or off, biasing resynthesis
+				toward the tonal part of the spectrum. Default off.
+			</description>
+		</attribute>
+		<attribute name="tonalpreserve" get="1" set="1" type="float64" size="1">
+			<digest>Tonal/noise amount</digest>
+			<description>
+				How strongly tonal content is preserved over noise, 0.0-1.0.
+				Default 0.5.
+			</description>
+		</attribute>
+		<attribute name="tonalbw" get="1" set="1" type="float64" size="1">
+			<digest>Tonal/noise bandwidth</digest>
+			<description>
+				Analysis bandwidth used by tonal/noise preservation. Default 0.9.
+			</description>
+		</attribute>
+	</attributelist>
+
+	<!--SEEALSO-->
+	<seealsolist>
+		<seealso name="paulstretch~" />
+	</seealsolist>
+
+</c74object>
