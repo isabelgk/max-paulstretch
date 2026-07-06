@@ -1,0 +1,74 @@
+name: Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            name: macos
+            generator: Ninja
+          - os: windows-latest
+            name: windows
+            generator: "Visual Studio 17 2022"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ninja
+        if: matrix.name == 'macos'
+        run: brew install ninja
+
+      - name: Configure
+        run: cmake -S . -B build -G "${{ matrix.generator }}" -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.name }}
+          path: build/package
+          if-no-files-found: error
+
+  bundle:
+    name: Bundle combined package
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download macOS package
+        uses: actions/download-artifact@v4
+        with:
+          name: package-macos
+          path: package
+
+      - name: Download Windows package
+        uses: actions/download-artifact@v4
+        with:
+          name: package-windows
+          path: package-windows
+
+      - name: Merge Windows externals into combined package
+        run: |
+          shopt -s nullglob
+          files=(package-windows/externals/*.mxe64)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::No .mxe64 externals found in the Windows build output" >&2
+            exit 1
+          fi
+          cp -v "${files[@]}" package/externals/
+
+      - name: Zip combined package
+        run: (cd package && zip -qr ../package.zip .)
+
+      - name: Upload combined package
+        uses: actions/upload-artifact@v4
+        with:
+          name: package
+          path: package.zip
+          if-no-files-found: error
