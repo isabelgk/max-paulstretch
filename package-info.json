@@ -3,7 +3,7 @@
     "author": "Isabel Kaspriskie",
     "description": "Paulstretch stretching algorithm for Max",
     "homepatcher": "",
-    "max_version_min": "9.0",
+    "max_version_min": "8.2",
     "max_version_max": "none",
     "os": {
         "macintosh": {
