@@ -2,6 +2,12 @@
 
 Max/MSP externals for the Paulstretch extreme time-stretching algorithm.
 
+## Installing
+
+Download the latest build of the package from the GitHub
+[Releases](https://github.com/isabelgk/max-paulstretch/releases) page. Unzip
+`package.zip` into your Max Packages directory.
+
 ## Building
 
 ### Directly with CMake
