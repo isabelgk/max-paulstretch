@@ -31,6 +31,7 @@ struct t_pstretch_buf
 
     // Transport
     long playing;
+    long pending_reset; // set on the message thread by pstretch_buf_int, consumed in perform64
     long* cursors; // per-channel read position in buffer frames (num_channels long)
 };
 
@@ -146,6 +147,7 @@ void* pstretch_buf_new(t_symbol* s, long argc, t_atom* argv)
     x->cursors = new long[1]{ 0 };
     x->num_channels = 1;
     x->playing = 0;
+    x->pending_reset = 0;
     x->base.sr = sys_getsr();
 
     x->base.stretch = 8.0;
@@ -219,13 +221,13 @@ void pstretch_buf_set(t_pstretch_buf* x, t_symbol*, long argc, t_atom* argv)
     }
 }
 
+// Runs on the message thread. Engine::reset() rebuilds the live Stretcher, so
+// calling it here would race with a concurrently running perform64. Just flag
+// it and let perform64 do the actual reset on the audio thread.
 void pstretch_buf_int(t_pstretch_buf* x, long n)
 {
     if (n) {
-        for (long i = 0; i < x->base.num_engines; ++i) {
-            x->cursors[i] = 0;
-            x->base.engines[i]->reset();
-        }
+        x->pending_reset = 1;
         x->playing = 1;
     }
     else {
@@ -280,6 +282,14 @@ void pstretch_buf_perform64(t_pstretch_buf* x, t_object*, double**, long, double
     if (!x->playing || x->base.num_engines < 1 || !x->base.engines[0]->ready()) {
         silence();
         return;
+    }
+
+    if (x->pending_reset) {
+        x->pending_reset = 0;
+        for (long i = 0; i < x->base.num_engines; ++i) {
+            x->cursors[i] = 0;
+            x->base.engines[i]->reset();
+        }
     }
 
     t_buffer_obj* buf = buffer_ref_getobject(x->buf_ref);

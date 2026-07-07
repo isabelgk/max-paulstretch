@@ -15,13 +15,16 @@
 //     - returns        : the input cursor as a percent 0..100, which the
 //                         stretcher feeds to its stretch envelope
 //
-// Not thread-safe; all calls expected on the audio thread except configure(),
-// which (re)allocates and is meant for the dsp64 setup pass.
+// Not thread-safe; all calls expected on the audio thread except configure()
+// (meant for the dsp64 setup pass) and the envelope/filter setters below,
+// which are safe to call from the message thread. reset() still requires the
+// caller to already be on the audio thread.
 
 #pragma once
 
 #include <algorithm>
 #include <memory>
+#include <mutex>
 #include <vector>
 
 #include "paulstretch/paulstretch.h"
@@ -111,20 +114,24 @@ class Engine
 
     // Stretch envelope: a position(0..1)->stretch-multiplier breakpoint curve
     // evaluated against the input cursor. Cached so it survives DSP restarts.
+    //
+    // Safe to call from the message thread while pull() runs on the audio
+    // thread: the new curve is stashed and applied by pull(), not written
+    // into the live stretcher here.
     void set_stretch_envelope(std::vector<paulstretch::Breakpoint> env)
     {
-        stretch_env_ = std::move(env);
-        if (stretcher_) {
-            stretcher_->set_stretch_envelope(stretch_env_);
-        }
+        stretch_env_ = env;
+        std::lock_guard<std::mutex> lock(pending_mutex_);
+        pending_stretch_env_ = std::move(env);
+        stretch_env_pending_ = true;
     }
 
     void clear_stretch_envelope()
     {
         stretch_env_.clear();
-        if (stretcher_) {
-            stretcher_->clear_stretch_envelope();
-        }
+        std::lock_guard<std::mutex> lock(pending_mutex_);
+        pending_stretch_env_.clear();
+        stretch_env_pending_ = true;
     }
 
     // Cached breakpoint curves, exposed so a newly built per-channel engine can be
@@ -133,21 +140,22 @@ class Engine
 
     // Arbitrary filter: a position(0..1)->gain breakpoint curve over the
     // spectrum. Gated by ProcessOptions::arbitrary_filter_enabled. Cached so it
-    // survives DSP restarts.
+    // survives DSP restarts. Same message/audio thread handoff as
+    // set_stretch_envelope() above.
     void set_arbitrary_filter(std::vector<paulstretch::Breakpoint> filter)
     {
-        arb_filter_ = std::move(filter);
-        if (stretcher_) {
-            stretcher_->set_arbitrary_filter(arb_filter_);
-        }
+        arb_filter_ = filter;
+        std::lock_guard<std::mutex> lock(pending_mutex_);
+        pending_arb_filter_ = std::move(filter);
+        arb_filter_pending_ = true;
     }
 
     void clear_arbitrary_filter()
     {
         arb_filter_.clear();
-        if (stretcher_) {
-            stretcher_->clear_arbitrary_filter();
-        }
+        std::lock_guard<std::mutex> lock(pending_mutex_);
+        pending_arb_filter_.clear();
+        arb_filter_pending_ = true;
     }
 
     const std::vector<paulstretch::Breakpoint>& arbitrary_filter() const { return arb_filter_; }
@@ -166,6 +174,7 @@ class Engine
     template <typename Fill>
     void pull(double* out, long n, Fill&& fill)
     {
+        apply_pending();
         if (!stretcher_) {
             std::fill_n(out, n, 0.0);
             return;
@@ -179,6 +188,31 @@ class Engine
     }
 
   private:
+    // Pick up any envelope/filter swapped in from the message thread. Uses
+    // try_lock so the audio thread never blocks; a missed lock just defers
+    // the pickup to the next block. This (and reset(), called the same way
+    // from perform64) can allocate on the audio thread, which is fine since
+    // it only happens at a preset/reset moment that's already discontinuous.
+    void apply_pending()
+    {
+        std::unique_lock<std::mutex> lock(pending_mutex_, std::try_to_lock);
+        if (!lock.owns_lock()) {
+            return;
+        }
+        if (stretch_env_pending_) {
+            if (stretcher_) {
+                stretcher_->set_stretch_envelope(pending_stretch_env_);
+            }
+            stretch_env_pending_ = false;
+        }
+        if (arb_filter_pending_) {
+            if (stretcher_) {
+                stretcher_->set_arbitrary_filter(pending_arb_filter_);
+            }
+            arb_filter_pending_ = false;
+        }
+    }
+
     template <typename Fill>
     void run_step(Fill& fill)
     {
@@ -200,6 +234,14 @@ class Engine
     std::vector<paulstretch::Breakpoint> arb_filter_; // cached, re-applied on configure()
     std::size_t out_head_ = 0; // read cursor into step_out_
     bool first_ = true;
+
+    // Message-thread -> audio-thread handoff for hot envelope/filter swaps
+    // (see set_stretch_envelope() / set_arbitrary_filter() above).
+    std::mutex pending_mutex_;
+    std::vector<paulstretch::Breakpoint> pending_stretch_env_;
+    bool stretch_env_pending_ = false;
+    std::vector<paulstretch::Breakpoint> pending_arb_filter_;
+    bool arb_filter_pending_ = false;
 };
 
 } // namespace maxpaulstretch
