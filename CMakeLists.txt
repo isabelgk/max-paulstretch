@@ -28,6 +28,31 @@ project(MaxPaulstretch)
 # build-tree package. Overwrite it with the public-facing README instead.
 file(COPY_FILE "${CMAKE_SOURCE_DIR}/README-public.md" "${CMAKE_BINARY_DIR}/package/README.md")
 
+# Package version comes from the latest "v*" git tag (stripped of its "v"),
+# so a release build's package-info.json always matches the tag it ships as.
+# Falls back to 0.0.0 for untagged dev builds.
+set(PACKAGE_VERSION "0.0.0")
+find_package(Git QUIET)
+if (GIT_FOUND)
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} describe --tags --match "v*" --abbrev=0
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        OUTPUT_VARIABLE _paulstretch_git_tag
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+        RESULT_VARIABLE _paulstretch_git_describe_result
+    )
+    if (_paulstretch_git_describe_result EQUAL 0 AND _paulstretch_git_tag)
+        string(REGEX REPLACE "^v" "" PACKAGE_VERSION "${_paulstretch_git_tag}")
+    endif ()
+endif ()
+message(STATUS "Package version: ${PACKAGE_VERSION}")
+configure_file(
+    "${CMAKE_SOURCE_DIR}/package-info.json.in"
+    "${CMAKE_BINARY_DIR}/package/package-info.json"
+    @ONLY
+)
+
 set(AUTHOR_DOMAIN "com.isabelgk.max")
 
 message(STATUS "Fetching libpaulstretch")
