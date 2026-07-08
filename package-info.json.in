@@ -2,7 +2,6 @@
     "name": "paulstretch",
     "author": "Isabel Kaspriskie",
     "description": "Paulstretch stretching algorithm for Max",
-    "homepatcher": "",
     "max_version_min": "8.2",
     "max_version_max": "none",
     "os": {
@@ -11,24 +10,19 @@
                 "x64",
                 "arm64"
             ],
-            "min_version": "10.15"
+            "min_version": "10.11"
         },
         "windows": {
             "platform": [
                 "x64"
             ],
-            "min_version": "10"
+            "min_version": "8"
         }
     },
     "package_extra": {
         "reverse_domain": "com.isabelgk.max.paulstretch",
         "copyright": "Copyright (c) 2026 Isabel Kaspriskie"
     },
-    "tags": [
-        "audio",
-        "effects",
-        "time stretch"
-    ],
     "version": "@PACKAGE_VERSION@",
     "website": "http://www.github.com/isabelgk/max-paulstretch"
 }
