@@ -21,14 +21,15 @@ The Max package you can add to `~/Documents/Max 9/Packages/` is produced under
 
 ### With `mise`
 
-`mise` automatically manages dev tools and environment setup. It will install
-`just` for this project which is used to run common tasks.
+`mise` automatically manages dev tools and environment setup, and provides
+tasks for running common commands.
 
 Install [mise](https://mise.jdx.dev/).
 
 ```
 mise install
-just build-release-mac # or just build-release-win
+mise run configure-release-mac # or mise run configure-release-win
+mise run build-release
 ```
 
-To list available commands, run `just` on it's own.
+To list available tasks, run `mise tasks`.

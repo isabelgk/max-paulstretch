@@ -1,5 +1,29 @@
 [tools]
 cmake = "latest"
-just = "latest"
 ninja = "latest"
 uv = "latest"
+
+[tasks.configure-debug-mac]
+run = "cmake -G Ninja -S . -B build-debug -DCMAKE_BUILD_TYPE=Debug"
+
+[tasks.configure-release-mac]
+run = "cmake -G Ninja -S . -B build-release -DCMAKE_BUILD_TYPE=Release"
+
+[tasks.configure-debug-win]
+run = "cmake -S . -B build-debug -DCMAKE_BUILD_TYPE=Debug"
+
+[tasks.configure-release-win]
+run = "cmake -S . -B build-release -DCMAKE_BUILD_TYPE=Release"
+
+[tasks.build-debug]
+run = "cmake --build build-debug"
+
+[tasks.build-release]
+run = "cmake --build build-release"
+
+[tasks.format]
+alias = "fmt"
+run = [
+    "clang-format -i source/**/*.h",
+    "clang-format -i source/**/*.cpp",
+]
