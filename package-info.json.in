@@ -8,9 +8,9 @@
         "macintosh": {
             "platform": [
                 "x64",
-                "arm64"
+                "aarch64"
             ],
-            "min_version": "10.11"
+            "min_version": "10.11.x"
         },
         "windows": {
             "platform": [
